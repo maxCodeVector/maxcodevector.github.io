@@ -1,6 +1,6 @@
 ---
 layout:     post
-title:      "Fix OS boot when suffer Bad Sector"
+title:      "Fix OS Boot when Suffering Bad Sector"
 subtitle:   "My experience of fix my three-operate system by moving efi partition from bad sector"
 date:       2019-08-22
 author:     "Huang Yu'an"
@@ -11,7 +11,7 @@ tags:
     - OS
 ---
 
-
+#### 原因
 前几天因为Manjaro系统在安装某个包的时候卡住了，点关机按钮也没有用，于是就长按电源键强制关机了，结果就GG了，再开机时屏幕显示找不到设备，请在硬盘上安装操作系统。最终折腾了一天，总算是把系统恢复了，特此记录一下。
 
 ![java-javascript](/img/in-post/os-fix/none.jpg)
@@ -19,11 +19,20 @@ tags:
 
 出现系统无法进入的情况后直接想到的就是引导坏了，查看启动方式，果然连硬盘都检测不到了。按F2进行检查，内存检测通过，但硬盘短时检测fail, 在网上搜索解决方案时，惠普官方网站说出现这个结果意味着硬盘的寿命快到了（并且还提供了客服的联系方式/捂脸）.
 
-![java-javascript](/img/in-post/os-fix/nodisk.jpg)
 
-找同学借了个ubuntu 16.04的live CD(启动盘), 看看能不能先进入系统，可以试着输入一些命令进行修复，但是在load kernel的过程中出现了sector 2048 i/o error, 上面也有提到不能挂在NTFS分区，同学说只要用命令NTFXfix命令（大概是这个， 没有去找）就可以修复，不过现在也没有控制台，而且也可以看出主要的问题出在硬盘上，现在还不能确定是引导损坏或者是整个硬盘已经损坏。
+![java-javascript](/img/in-post/os-fix/test.jpg)
+<small class="img-hint">Short Dist Test Failed</small>
+
+![java-javascript](/img/in-post/os-fix/nodisk.jpg)
+<small class="img-hint">检测启动设备只能看到U盘</small>
+
+
+#### 开始的几个尝试
+找同学借了个ubuntu 16.04的live CD(启动盘), 看看能不能先进入系统，可以试着输入一些命令进行修复，但是在启动过程中出现了`sector 2048 i/o error`, 上面也有提到不能挂在NTFS分区，同学说只要用命令NTFXfix命令（大概是这个， 没有去找）就可以修复，不过现在也没有控制台，而且也可以看出主要的问题出在硬盘上，现在还不能确定是引导损坏或者是整个硬盘已经损坏。
 
 ![java-javascript](/img/in-post/os-fix/ubuntu.jpg)
+<small class="img-hint">使用Ubuntu的启动盘无法进入系统，但是可以注意到2048这个特殊数字</small>
+
 
 于是借到了一个大白菜PE盘，经过漫长的等待（加载PE桌面很慢），我的电脑终于出现了图形界面。
 
@@ -31,7 +40,9 @@ pe只帮我检测到了windows系统（我电脑上还装了ubuntu18.04和manjar
 
 
 ![java-javascript](/img/in-post/os-fix/2048.jpg)
+<small class="img-hint">2048扇区记录异常， 0x3f密集(x_x)</small>
 
+#### 发现原因，解决
 总结目前掌握的情况，硬盘自检失败，efi分区无法打开，引导记录查看工具提示某扇区crc校验不通过，那么试试看能否定位到坏掉的扇区。结合用ubuntu启动盘启动的情况，提示io error, sector 2048不可读，于是使用扇区编辑工具查看第2048扇区，果然发现了异常，从2048开始连续8个扇区记录均为0x3f。可以确定，2048号扇区发生损坏。
 
 这里解释一下为什么是8个，我的逻辑扇区大小为512B, 8个就是4KB，刚好是一个扇区的物理大小，这正好说明了是一整个扇区损坏。
