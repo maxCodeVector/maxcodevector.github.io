@@ -1,6 +1,6 @@
 # Site settings
-title: Hya Blog
-SEOTitle: 你的博客 | Your Blog
+title: Welcome!
+SEOTitle: 黄玉安Blog | Hya Blog
 header-img: img/home-bg.jpg
 email: hyapro@gmail.com
 description: "Hya's Blog"
@@ -12,11 +12,11 @@ baseurl: ""         # for example, '/blog' if your blog hosted on 'host/blog'
 
 # SNS settings
 RSS: false
-# weibo_username:     huxpro
+# weibo_username:     hyapro
 zhihu_username:     hya
 github_username:    maxCodeVector
-# twitter_username:  huxpro
-# facebook_username:  huxpro
+# twitter_username:  hyapro
+# facebook_username:  hyapro
 
 
 
@@ -69,7 +69,7 @@ ga_domain: huangyu'an.me
 # Sidebar settings
 sidebar: true                           # whether or not using Sidebar.
 sidebar-about-description: "写写代码，做做设计，看看产品。世界那么大，多玩玩看看。"
-sidebar-avatar: /img/avatar-hux.jpg      # use absolute URL, seeing it's used in both `/` and `/about/`
+sidebar-avatar: /img/avatar-hya.jpg      # use absolute URL, seeing it's used in both `/` and `/about/`
 
 
 

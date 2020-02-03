@@ -4,7 +4,7 @@ title:      "Example Post using Keynote Layout"
 subtitle:   "Keynote: JavaScript Modularization Journey"
 iframe:     "http://huangxuan.me/js-module-7day/"
 date:       2015-07-09
-author:     "Hux"
+author:     "hya"
 header-img: "img/post-bg-js-version.jpg"
 tags:
     - 前端开发
@@ -26,7 +26,7 @@ tags:
 <small class="img-hint">你也可以通过扫描二维码在手机上观看</small>
 
 
-这个 Web Slides 开源在[我的 Github 上](https://github.com/Huxpro/js-module-7day)，欢迎你帮助我完善这个展示文稿，你可以给我提 issue，可以 fork & pull request。如果它能帮助到你了，希望你还能不吝啬 star 一下这个项目
+这个 Web Slides 开源在[我的 Github 上](https://github.com/hyapro/js-module-7day)，欢迎你帮助我完善这个展示文稿，你可以给我提 issue，可以 fork & pull request。如果它能帮助到你了，希望你还能不吝啬 star 一下这个项目
 
 
 ### Catalog
