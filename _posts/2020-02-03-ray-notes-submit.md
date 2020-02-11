@@ -1,7 +1,7 @@
 ---
 layout:     post
 title:      "Ray Notes"
-subtitle:   "notes of reading source code of ray"
+subtitle:   "ray source code notes - submit"
 date:       2020-02-03
 author:     "Huang Yu'an"
 header-img: "img/post-bg-unix-linux.jpg"
@@ -11,16 +11,18 @@ tags:
     - distrubute computing
 ---
 
-# Ray notes
+# Ray notes - Submit
 
-#### what ray.init() does?
+[toc]
 
-**python/ray/worker.py:**
+### What `ray.init()` does?
 
 if `driver_mode == LOCAL_MODE`
 
 ```python
-        _global_node = ray.node.LocalNode()
+    # in python/ray/worker.py
+    
+    _global_node = ray.node.LocalNode()
 ```
 
 else if `redis_address is None`, start a new cluster, (**default behavior**)
@@ -62,9 +64,9 @@ then call connect() to connect this node, call some hook if any
         if _internal_config else {})
 ```
 
-#### python/ray/node.py
 
-When create Node, pass local_mode to RayParams
+
+When creating Node, pass local_mode to RayParams
 
 >local_mode (bool): True if the code should be executed serially
 >without Ray. This is useful for debugging.
@@ -72,7 +74,9 @@ When create Node, pass local_mode to RayParams
 class: ray.node.Node(): create a node, may be start some new process.
 
 ```python
-    def __init__(self,
+	# python/ray/node.py
+
+	def __init__(self,
                  ray_params,
                  head=False,
                  shutdown_at_exit=True,
@@ -95,7 +99,7 @@ class: ray.node.Node(): create a node, may be start some new process.
         """
 ```
 
-#### How to connect a Node (local & remote)?
+### How to connect a Node (local & remote)?
 
 - Some basis check, eg. init twice?
 
@@ -162,7 +166,7 @@ class: ray.node.Node(): create a node, may be start some new process.
 
 
 
-### **How remote decorator works?**
+### How remote decorator works?
 
 **remote(*args, \*\*kwargs)**
 
@@ -293,8 +297,6 @@ is_direct_call: it is **false by default** which is controlled by environment va
 
 return an ActorHandle object
 
-
-
 #### Call the remote class (actor) function
 
 ```python
@@ -307,237 +309,51 @@ return an ActorHandle object
 
 
 
-#### How to get value according to objectID, ray.get()?
-
-```python
-    worker = global_worker
-    values = worker.get_objects(object_ids, timeout=timeout)
-```
-
-in Worker::get_objects()
-
-```python
-     data_metadata_pairs = self.core_worker.get_objects(
-            object_ids, self.current_task_id, timeout_ms)
-     return self.deserialize_objects(data_metadata_pairs, object_ids)
-```
-
-#### How to put value according, ray.put()?
-
-```python
-object_id = worker.put_object(value)
-
-if not weakref and not worker.mode == LOCAL_MODE:
-    object_id.set_buffer_ref(
-    	worker.core_worker.get_objects([object_id],
-    									worker.current_task_id))
-return object_id
-
-```
-
-in Worker::put_object(),
-
-```python
-   def put_object(self, value, object_id=None):
-       ......
-        serialized_value = self.get_serialization_context().serialize(value)
-        return self.core_worker.put_serialized_object(
-            serialized_value, object_id=object_id)
-```
-
-#### How `submit_task()` works in CoreWorker?:
+### How create_actor() works in `CoreWorker`?
 
 ```cython
-from ray.includes.libcoreworker cimport CCoreWorker
-
-class CoreWorker:
-    def submit_task(self,
-                    function_descriptor,
-                    args,
-                    int num_return_vals,
-                    c_bool is_direct_call,
-                    resources,
-                    int max_retries):
+  def create_actor(self,
+                     function_descriptor,
+                     args,
+                     uint64_t max_reconstructions,
+                     resources,
+                     placement_resources,
+                     c_bool is_direct_call,
+                     int32_t max_concurrency,
+                     c_bool is_detached,
+                     c_bool is_asyncio):
         cdef:
-            unordered_map[c_string, double] c_resources
-            CTaskOptions task_options
             CRayFunction ray_function
             c_vector[CTaskArg] args_vector
-            c_vector[CObjectID] return_ids
+            c_vector[c_string] dynamic_worker_options
+            unordered_map[c_string, double] c_resources
+            unordered_map[c_string, double] c_placement_resources
+            CActorID c_actor_id
 
         with self.profile_event(b"submit_task"):
-            prepare_resources(resources, &c_resources) # some resources
-            task_options = CTaskOptions(
-                num_return_vals, is_direct_call, c_resources)
+            prepare_resources(resources, &c_resources)
+            prepare_resources(placement_resources, &c_placement_resources)
             ray_function = CRayFunction(
                 LANGUAGE_PYTHON, string_vector_from_list(function_descriptor))
-            prepare_args(args, &args_vector) # push arguments
+            prepare_args(args, &args_vector)
 
             with nogil:
-                check_status(self.core_worker.get().SubmitTask(
-                    ray_function, args_vector, task_options, &return_ids,
-                    max_retries))
+                check_status(self.core_worker.get().CreateActor(
+                    ray_function, args_vector,
+                    CActorCreationOptions(
+                        max_reconstructions, is_direct_call, max_concurrency,
+                        c_resources, c_placement_resources,
+                        dynamic_worker_options, is_detached, is_asyncio),
+                    &c_actor_id))
 
-            return VectorToObjectIDs(return_ids)
+            return ActorID(c_actor_id.Binary())
 ```
 
-
-
-python/ray/includes/libcoreworker.pxd:
-
-```cython
-cdef extern from "ray/core_worker/core_worker.h" nogil:
-    cdef cppclass CCoreWorker "ray::CoreWorker":
-        CCoreWorker(const CWorkerType worker_type, const CLanguage language,
-                    const c_string &store_socket,
-                    const c_string &raylet_socket, const CJobID &job_id,
-                    const CGcsClientOptions &gcs_options,
-                    const c_string &log_dir, const c_string &node_ip_address,
-                    int node_manager_port,
-                    CRayStatus (
-                        CTaskType task_type,
-                        const CRayFunction &ray_function,
-                        const unordered_map[c_string, double] &resources,
-                        const c_vector[shared_ptr[CRayObject]] &args,
-                        const c_vector[CObjectID] &arg_reference_ids,
-                        const c_vector[CObjectID] &return_ids,
-                        c_vector[shared_ptr[CRayObject]] *returns) nogil,
-                    CRayStatus() nogil,
-                    c_bool ref_counting_enabled)
-        void Disconnect()
-        CWorkerType &GetWorkerType()
-        CLanguage &GetLanguage()
-
-        void StartExecutingTasks()
-
-        CRayStatus SubmitTask(
-            const CRayFunction &function, const c_vector[CTaskArg] &args,
-            const CTaskOptions &options, c_vector[CObjectID] *return_ids,
-            int max_retries)
-```
-
-src/ray/core_worker/core_worker.cc:
-
-```cpp
-Status CoreWorker::SubmitTask(const RayFunction &function,
-                              const std::vector<TaskArg> &args,
-                              const TaskOptions &task_options,
-                              std::vector<ObjectID> *return_ids, int max_retries) {
-  TaskSpecBuilder builder;
-  const int next_task_index = worker_context_.GetNextTaskIndex();
-  const auto task_id =
-      TaskID::ForNormalTask(worker_context_.GetCurrentJobID(),
-                            worker_context_.GetCurrentTaskID(), next_task_index);
-
-  const std::unordered_map<std::string, double> required_resources;
-  // TODO(ekl) offload task building onto a thread pool for performance
-  BuildCommonTaskSpec(
-      builder, worker_context_.GetCurrentJobID(), task_id,
-      worker_context_.GetCurrentTaskID(), next_task_index, GetCallerId(), rpc_address_,
-      function, args, task_options.num_returns, task_options.resources,
-      required_resources,
-      task_options.is_direct_call ? TaskTransportType::DIRECT : TaskTransportType::RAYLET,
-      return_ids);
-  TaskSpecification task_spec = builder.Build();
-  if (task_options.is_direct_call) {
-    task_manager_->AddPendingTask(GetCallerId(), rpc_address_, task_spec, max_retries);
-    return direct_task_submitter_->SubmitTask(task_spec);
-  } else {
-    return local_raylet_client_->SubmitTask(task_spec);
-  }
-}
-```
-
-#### Some definition:
-
-```cpp
-// Language of a task or worker.
-enum Language {
-  PYTHON = 0;
-  JAVA = 1;
-  CPP = 2;
-}
-
-// Type of a worker.
-enum WorkerType {
-  WORKER = 0;
-  DRIVER = 1;
-}
-
-// Type of a task.
-enum TaskType {
-  // Normal task.
-  NORMAL_TASK = 0;
-  // Actor creation task.
-  ACTOR_CREATION_TASK = 1;
-  // Actor task.
-  ACTOR_TASK = 2;
-}
-```
-
-to be continued...
-
-#### Where are value/reference of objects stored?
-
-1. open a space to store the new data and test if this object_id data has been created, if yet, do nothing and report it.
-
-```cython
- cdef:
-            CObjectID c_object_id
-            shared_ptr[CBuffer] data
-            shared_ptr[CBuffer] metadata
-        metadata = string_to_buffer(serialized_object.metadata)
-        total_bytes = serialized_object.total_bytes
-        object_already_exists = self._create_put_buffer(
-            metadata, total_bytes, object_id, &c_object_id, &data)
-```
-
-Using the Plasma In-Memory Object Store from C++.
-
-```c++
-/* in src/ray/core_worker/store_provider/plasma_store_provider.cc:55 */    
-
-Status CoreWorkerPlasmaStoreProvider::Create(const std::shared_ptr<Buffer> &metadata,
-                                             const size_t data_size,
-                                             const ObjectID &object_id,
-                                             std::shared_ptr<Buffer> *data) {
-    ...
-    arrow::Status status =
-        store_client_.Create(plasma_id, data_size, metadata ? metadata->Data() : nullptr,
-                             metadata ? metadata->Size() : 0, &arrow_buffer);
-    ...
-}
-```
-
-2. If it is new object, after allocate a new place, write the serialized data to it, then call Seal() to make it immutable.
-
-```cython
-if not object_already_exists:
-            write_serialized_object(serialized_object, data)
-            with nogil:
-                check_status(
-                    self.core_worker.get().Seal(c_object_id))
-        return ObjectID(c_object_id.Binary())
-
-```
-
-3. Finally return the object id.
-
-#### How create_actor() works in CoreWorker?
+It will invoke method `CoreWorker::CreateActor` to create the actor and generate relative actor id.
 
 
 
-
-
-
-
-#### Where Global Control Store (GCS) stored in? One machine (head) or multiple?
-
-#### How Object Table, Task Table, Function Table implement in GCS?
-
-#### How it schedule task by considering the dependency?
-
-
+### Other useful reference
 
 https://medium.com/distributed-computing-with-ray/how-ray-uses-grpc-and-arrow-to-outperform-grpc-43ec368cb385
 
