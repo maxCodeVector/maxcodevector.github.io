@@ -13,7 +13,8 @@ tags:
 
 # Ray notes - Storage
 
-[toc]
+
+<!-- TOC -->autoauto- [Ray notes - Storage](#ray-notes---storage)auto        - [How to get value according to `ray.get(objectID)`?](#how-to-get-value-according-to-raygetobjectid)auto        - [How to put value according, ray.put()?](#how-to-put-value-according-rayput)auto        - [Where are value/reference of objects stored?](#where-are-valuereference-of-objects-stored)auto        - [Where Global Control Store (GCS) stored in? One machine (head) or multiple?](#where-global-control-store-gcs-stored-in-one-machine-head-or-multiple)auto        - [How Object Table, Task Table, Function Table implement in GCS?](#how-object-table-task-table-function-table-implement-in-gcs)autoauto<!-- /TOC -->
 
 ### How to get value according to `ray.get(objectID)`?
 
