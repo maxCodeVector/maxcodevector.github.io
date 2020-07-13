@@ -71,4 +71,6 @@ format quick fs=FAT32
 #### 最后
 感谢借我PE盘和为我做启动盘的同学，感谢一直远程指导我的某Yin。
 
+欢迎来我的github参观:　[maxCodeVector](https://github.com/maxCodeVector)
+
 
